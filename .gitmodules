@@ -1,0 +1,3 @@
+[submodule "eufy_robovac"]
+	path = eufy_robovac
+	url = git@github.com:mitchellrj/eufy_robovac.git
