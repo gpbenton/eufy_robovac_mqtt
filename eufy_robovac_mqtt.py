@@ -14,15 +14,15 @@ from eufy_robovac.robovac import CleanSpeed
 
 class EufyMqtt:
     def __init__(self, config):
-        self.mqtt_address = config["mqtt"]["address"]
-        self.mqtt_port = config["mqtt"]["port"]
-        self.mqtt_prefix = config["mqtt"]["prefix"]
+        self.mqtt_address = config["address"]
+        self.mqtt_port = config["port"]
+        self.mqtt_prefix = config["prefix"]
         self.will_topic = self.mqtt_prefix + "available"
         self.state_topic = self.mqtt_prefix + "state"
         self.command_topic = self.mqtt_prefix + "command"
         self.fan_speed_topic = self.mqtt_prefix + "fan_speed"
         self.mqtt_client = mqtt.Client()
-        self.mqtt_client.username_pw_set(config["mqtt"]["user"], config["mqtt"]["pwd"])
+        self.mqtt_client.username_pw_set(config["user"], config["pwd"])
         self.mqtt_client.on_connect = self.on_mqtt_connect
         self.mqtt_client.on_message = self.on_mqtt_message
         self.mqtt_client.will_set(self.will_topic, payload="offline")
@@ -78,9 +78,9 @@ class EufyRobovacMqtt:
         self.asyncio_loop = asyncio.get_event_loop()
         self.eufy_mqtt = mqtt
         self.eufy_state = None
-        self.rbv = Robovac(config["eufy"]["devId"],
-                config["eufy"]["ip"],
-                local_key=config["eufy"]["localKey"])
+        self.rbv = Robovac(config["devId"],
+                config["ip"],
+                local_key=config["localKey"])
         self.eufy_mqtt.user_data_set(self)
 
     def connect(self):
@@ -177,8 +177,8 @@ def main(*args, **kwargs):
     try:
         with open(".env", "r") as f:
             config = yaml.load(f, Loader=yaml.SafeLoader)
-            eufy_mqtt = EufyMqtt(config)
-            eufy_instance = EufyRobovacMqtt(config, eufy_mqtt)
+            eufy_mqtt = EufyMqtt(config["mqtt"])
+            eufy_instance = EufyRobovacMqtt(config["eufy"], eufy_mqtt)
 
         eufy_instance.asyncio_loop.run_forever()
     except Exception as e:
