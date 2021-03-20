@@ -1,3 +1,19 @@
+# -*- coding: utf-8 -*-
+
+# Copyright 2021 Graham Benton
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import paho.mqtt.client as mqtt
 import yaml
 import json
@@ -7,10 +23,9 @@ import logging
 from pprint import pprint
 import sys
 
-from eufy_robovac.robovac import Robovac
-from eufy_robovac.robovac import WorkStatus
-from eufy_robovac.robovac import CleanSpeed
+from eufy_robovac.robovac import Robovac, WorkStatus, CleanSpeed
 
+_LOGGER = logging.getLogger(__name__)
 
 class EufyMqtt:
     def __init__(self, config):
@@ -48,30 +63,30 @@ class EufyMqtt:
 
     # The callback for when the mqtt client receives a CONNACK response from the broker.
     def on_mqtt_connect(self, client, eufy_instance, flags, rc):
-        pprint("Connected to mqtt broker with result code "+str(rc))
+        _LOGGER.info("Connected to mqtt broker with result code "+str(rc))
         self.mqtt_client.subscribe((self.command_topic, 0),
                                    (self.fan_speed_topic, 0))
         eufy_instance.connect()
 
     # The callback for when a PUBLISH message is received from the mqtt broker.
     def on_mqtt_message(self, client, eufy_client, msg):
-        pprint(msg.topic+" "+str(msg.payload))
+        _LOGGER.debug(msg.topic+" "+str(msg.payload))
 
         if mqtt.topic_matches_sub(msg.topic, self.command_topic):
             if msg.payload == b"locate":
-                pprint("locate")
+                _LOGGER.debug("locate")
                 eufy_client.find_robot()
             elif msg.payload == b"clean_spot":
-                pprint("clean_spot")
+                _LOGGER.debug("clean_spot")
                 eufy_client.clean_spot()
             elif msg.payload == b"return_to_base":
-                pprint("go_home")
+                _LOGGER.debug("go_home")
                 eufy_client.go_home()
             elif msg.payload == b"start_pause":
-                pprint("start_pause")
+                _LOGGER.debug("start_pause")
                 eufy_client.play()
             elif msg.payload == b"stop":
-                pprint("stop")
+                _LOGGER.debug("stop")
                 eufy_client.stop()
 
         elif mqtt.topic_matches_sub(msg.topic, self.fan_speed_topic):
@@ -120,42 +135,42 @@ class EufyRobovacMqtt:
                 self.asyncio_loop)
 
     async def connected_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_online()
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
 
     async def play_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         asyncio.run_coroutine_threadsafe(
                 self.rbv.async_get(self.get_callback),
                 self.asyncio_loop)
 
     async def pause_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         asyncio.run_coroutine_threadsafe(
                 self.rbv.async_get(self.get_callback),
                 self.asyncio_loop)
 
     async def go_home_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         asyncio.run_coroutine_threadsafe(
                 self.rbv.async_get(self.get_callback),
                 self.asyncio_loop)
 
     async def find_robot_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
 
     async def set_work_mode_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         asyncio.run_coroutine_threadsafe(
                 self.rbv.async_get(self.get_callback),
                 self.asyncio_loop)
 
     async def get_callback(self, message, device):
-        pprint(device.state)
+        _LOGGER.debug(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
 
@@ -196,7 +211,7 @@ def main(*args, **kwargs):
 
         eufy_instance.asyncio_loop.run_forever()
     except Exception as e:
-        pprint(e)
+        _LOGGER.debug(e)
         eufy_mqtt.disconnect()
 
 if __name__ == '__main__':
