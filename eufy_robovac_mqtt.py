@@ -57,19 +57,24 @@ class EufyMqtt:
     def on_mqtt_message(self, client, eufy_client, msg):
         pprint(msg.topic+" "+str(msg.payload))
 
-        if self.mqtt_client.topic_matches_sub(msg.topic, self.command_topic):
-            if msg.payload == "locate":
+        if mqtt.topic_matches_sub(msg.topic, self.command_topic):
+            if msg.payload == b"locate":
+                pprint("locate")
                 eufy_client.find_robot()
-            elif msg.payload == "clean_spot":
+            elif msg.payload == b"clean_spot":
+                pprint("clean_spot")
                 eufy_client.clean_spot()
-            elif msg.payload == "return_to_base":
+            elif msg.payload == b"return_to_base":
+                pprint("go_home")
                 eufy_client.go_home()
-            elif msg.payload == "start_pause":
+            elif msg.payload == b"start_pause":
+                pprint("start_pause")
                 eufy_client.play()
-            elif msg.payload == "stop":
+            elif msg.payload == b"stop":
+                pprint("stop")
                 eufy_client.stop()
 
-        elif self.mqtt_client.topic_matches_sub(msg.topic, self.fan_speed_topic):
+        elif mqtt.topic_matches_sub(msg.topic, self.fan_speed_topic):
             pass
 
 
@@ -122,18 +127,21 @@ class EufyRobovacMqtt:
 
     async def play_callback(self, message, device):
         pprint(device.state)
-        self.eufy_state = device.state
-        self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_get(self.get_callback),
+                self.asyncio_loop)
 
     async def pause_callback(self, message, device):
         pprint(device.state)
-        self.eufy_state = device.state
-        self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_get(self.get_callback),
+                self.asyncio_loop)
 
     async def go_home_callback(self, message, device):
         pprint(device.state)
-        self.eufy_state = device.state
-        self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_get(self.get_callback),
+                self.asyncio_loop)
 
     async def find_robot_callback(self, message, device):
         pprint(device.state)
@@ -141,6 +149,12 @@ class EufyRobovacMqtt:
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
 
     async def set_work_mode_callback(self, message, device):
+        pprint(device.state)
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_get(self.get_callback),
+                self.asyncio_loop)
+
+    async def get_callback(self, message, device):
         pprint(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
