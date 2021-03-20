@@ -53,6 +53,9 @@ class EufyMqtt:
     def publish_online(self):
         self.mqtt_client.publish(self.will_topic, "online")
 
+    def publish_offline(self):
+        self.mqtt_client.publish(self.will_topic, "offline")
+
     def publish_state(self, state):
         self.mqtt_client.publish(self.state_topic, state)
 
@@ -66,7 +69,11 @@ class EufyMqtt:
         _LOGGER.info("Connected to mqtt broker with result code "+str(rc))
         self.mqtt_client.subscribe((self.command_topic, 0),
                                    (self.fan_speed_topic, 0))
-        eufy_instance.connect()
+        if eufy_instance.connected:
+            self.publish_online()
+            eufy_instance.get_state()
+        else:
+            self.publish_offline()
 
     # The callback for when a PUBLISH message is received from the mqtt broker.
     def on_mqtt_message(self, client, eufy_client, msg):
@@ -102,6 +109,11 @@ class EufyRobovacMqtt:
                 config["ip"],
                 local_key=config["localKey"])
         self.eufy_mqtt.user_data_set(self)
+        # There doesn't seem to be a way to get notified
+        # of robovac's state, so check back every 1s
+        self.connected = False
+        self.state_check_handle = self.asyncio_loop.create_task(self.periodic_state_check())
+
 
     def connect(self):
         asyncio.run_coroutine_threadsafe(
@@ -134,11 +146,17 @@ class EufyRobovacMqtt:
                 self.rbv.async_pause(self.pause_callback),
                 self.asyncio_loop)
 
+    def get_state(self):
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_get(self.get_callback),
+                self.asyncio_loop)
+
     async def connected_callback(self, message, device):
         _LOGGER.debug(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_online()
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
+        self.connected = True
 
     async def play_callback(self, message, device):
         _LOGGER.debug(device.state)
@@ -173,6 +191,31 @@ class EufyRobovacMqtt:
         _LOGGER.debug(device.state)
         self.eufy_state = device.state
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
+
+    async def periodic_state_check(self):
+        while True:
+            if self.connected:
+                if not self.rbv._connected:
+                    await asyncio.sleep(1)
+                else:
+                    _LOGGER.warning("Eufy disconnected from " + str(rbv.host))
+                    self.connected = False
+                    self.publish_offline()
+                    self.connect()
+                    await asyncio.sleep(10)
+
+            else:
+                if not self.rbv._connected:
+                    self.connect()
+                    await asyncio.sleep(10)
+                else:
+                    _LOGGER.warning("Eufy connected to " + str(rbv.host))
+                    self.connected = True
+                    self.mqtt.publish_online()
+                    asyncio.run_coroutine_threadsafe(
+                            self.rbv.async_get(self.get_callback),
+                            self.asyncio_loop)
+                    await asyncio.sleep(1)
 
     def ha_state(self, eufy_state):
         """ Converts eufy state into homeassistant state"""
