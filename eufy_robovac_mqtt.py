@@ -112,7 +112,8 @@ class EufyRobovacMqtt:
         # There doesn't seem to be a way to get notified
         # of robovac's state, so check back every 1s
         self.connected = False
-        self.state_check_handle = self.asyncio_loop.create_task(self.periodic_state_check())
+        self.state_check_handle =
+                self.asyncio_loop.create_task(self.periodic_state_check())
 
 
     def connect(self):
@@ -160,21 +161,15 @@ class EufyRobovacMqtt:
 
     async def play_callback(self, message, device):
         _LOGGER.debug(device.state)
-        asyncio.run_coroutine_threadsafe(
-                self.rbv.async_get(self.get_callback),
-                self.asyncio_loop)
+        asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def pause_callback(self, message, device):
         _LOGGER.debug(device.state)
-        asyncio.run_coroutine_threadsafe(
-                self.rbv.async_get(self.get_callback),
-                self.asyncio_loop)
+        asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def go_home_callback(self, message, device):
         _LOGGER.debug(device.state)
-        asyncio.run_coroutine_threadsafe(
-                self.rbv.async_get(self.get_callback),
-                self.asyncio_loop)
+        asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def find_robot_callback(self, message, device):
         _LOGGER.debug(device.state)
@@ -183,9 +178,7 @@ class EufyRobovacMqtt:
 
     async def set_work_mode_callback(self, message, device):
         _LOGGER.debug(device.state)
-        asyncio.run_coroutine_threadsafe(
-                self.rbv.async_get(self.get_callback),
-                self.asyncio_loop)
+        asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def get_callback(self, message, device):
         _LOGGER.debug(device.state)
@@ -212,9 +205,7 @@ class EufyRobovacMqtt:
                     _LOGGER.warning("Eufy connected to " + str(rbv.host))
                     self.connected = True
                     self.mqtt.publish_online()
-                    asyncio.run_coroutine_threadsafe(
-                            self.rbv.async_get(self.get_callback),
-                            self.asyncio_loop)
+                    asyncio.create_task(self.rbv.async_get(self.get_callback))
                     await asyncio.sleep(1)
 
     def ha_state(self, eufy_state):
