@@ -195,7 +195,7 @@ class EufyRobovacMqtt:
     async def periodic_state_check(self):
         while True:
             if self.connected:
-                if not self.rbv._connected:
+                if self.rbv._connected:
                     await asyncio.sleep(1)
                 else:
                     _LOGGER.warning("Eufy disconnected from " + str(rbv.host))
