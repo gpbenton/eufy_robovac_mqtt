@@ -40,7 +40,7 @@ class EufyMqtt:
         self.mqtt_client.username_pw_set(config["user"], config["pwd"])
         self.mqtt_client.on_connect = self.on_mqtt_connect
         self.mqtt_client.on_message = self.on_mqtt_message
-        self.mqtt_client.will_set(self.will_topic, payload="offline")
+        self.mqtt_client.will_set(self.will_topic, payload="offline", retain=True)
         self.mqtt_client.loop_start()
 
     def disconnect(self):
@@ -51,10 +51,10 @@ class EufyMqtt:
         self.mqtt_client.publish(topic, payload)
 
     def publish_online(self):
-        self.mqtt_client.publish(self.will_topic, "online")
+        self.mqtt_client.publish(self.will_topic, "online", retain=True)
 
     def publish_offline(self):
-        self.mqtt_client.publish(self.will_topic, "offline")
+        self.mqtt_client.publish(self.will_topic, "offline", retain=True)
 
     def publish_state(self, state):
         self.mqtt_client.publish(self.state_topic, state)
@@ -171,14 +171,17 @@ class EufyRobovacMqtt:
 
     async def play_callback(self, message, device):
         _LOGGER.debug(device.state)
+        await asyncio.sleep(1)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def pause_callback(self, message, device):
         _LOGGER.debug(device.state)
+        await asyncio.sleep(1)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def go_home_callback(self, message, device):
         _LOGGER.debug(device.state)
+        await asyncio.sleep(1)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def find_robot_callback(self, message, device):
@@ -188,10 +191,12 @@ class EufyRobovacMqtt:
 
     async def set_work_mode_callback(self, message, device):
         _LOGGER.debug(device.state)
+        await asyncio.sleep(1)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def set_clean_speed_callback(self, message, device):
         _LOGGER.debug(device.state)
+        await asyncio.sleep(1)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
     async def get_callback(self, message, device):
