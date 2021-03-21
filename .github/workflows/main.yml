@@ -35,6 +35,7 @@ jobs:
         with:
           push: true
           tags: ghcr.io/gpbenton/eufy_robovac_mqtt:latest
+          platforms: linux/amd64,linux/arm/v6
       -
         name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
