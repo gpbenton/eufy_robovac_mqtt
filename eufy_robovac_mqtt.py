@@ -35,7 +35,7 @@ class EufyMqtt:
         self.will_topic = self.mqtt_prefix + "available"
         self.state_topic = self.mqtt_prefix + "state"
         self.command_topic = self.mqtt_prefix + "command"
-        self.fan_speed_topic = self.mqtt_prefix + "fan_speed"
+        self.fan_speed_topic = self.mqtt_prefix + "set_fan_speed"
         self.mqtt_client = mqtt.Client()
         self.mqtt_client.username_pw_set(config["user"], config["pwd"])
         self.mqtt_client.on_connect = self.on_mqtt_connect
@@ -67,8 +67,8 @@ class EufyMqtt:
     # The callback for when the mqtt client receives a CONNACK response from the broker.
     def on_mqtt_connect(self, client, eufy_instance, flags, rc):
         _LOGGER.info("Connected to mqtt broker with result code "+str(rc))
-        self.mqtt_client.subscribe((self.command_topic, 0),
-                                   (self.fan_speed_topic, 0))
+        self.mqtt_client.subscribe([(self.command_topic, 0),
+                                    (self.fan_speed_topic, 0)])
         if eufy_instance.connected:
             self.publish_online()
             eufy_instance.get_state()
@@ -89,16 +89,19 @@ class EufyMqtt:
             elif msg.payload == b"return_to_base":
                 _LOGGER.debug("go_home")
                 eufy_client.go_home()
-            elif msg.payload == b"start_pause":
-                _LOGGER.debug("start_pause")
+            elif msg.payload == b"start":
+                _LOGGER.debug("start")
                 eufy_client.play()
             elif msg.payload == b"stop":
                 _LOGGER.debug("stop")
                 eufy_client.stop()
+            elif msg.payload == b"status":
+                _LOGGER.debug("status")
+                eufy_client.get_state()
 
         elif mqtt.topic_matches_sub(msg.topic, self.fan_speed_topic):
-            pass
-
+            _LOGGER.debug("mqtt message " + str(msg.topic) + " : " + str(msg.payload))
+            eufy_client.set_clean_speed(str(msg.payload))
 
 class EufyRobovacMqtt:
     def __init__(self, config, mqtt):
@@ -112,8 +115,8 @@ class EufyRobovacMqtt:
         # There doesn't seem to be a way to get notified
         # of robovac's state, so check back every 1s
         self.connected = False
-        self.state_check_handle =
-                self.asyncio_loop.create_task(self.periodic_state_check())
+        self.state_check_handle = self.asyncio_loop.create_task(
+                self.periodic_state_check())
 
 
     def connect(self):
@@ -147,6 +150,13 @@ class EufyRobovacMqtt:
                 self.rbv.async_pause(self.pause_callback),
                 self.asyncio_loop)
 
+    def set_clean_speed(self, speed):
+        _LOGGER.debug("set clean speed to: " + speed)
+        asyncio.run_coroutine_threadsafe(
+                self.rbv.async_set_clean_speed(speed,
+                                               self.set_clean_speed_callback),
+                self.asyncio_loop)
+
     def get_state(self):
         asyncio.run_coroutine_threadsafe(
                 self.rbv.async_get(self.get_callback),
@@ -177,6 +187,10 @@ class EufyRobovacMqtt:
         self.eufy_mqtt.publish_state(self.ha_state(self.eufy_state))
 
     async def set_work_mode_callback(self, message, device):
+        _LOGGER.debug(device.state)
+        asyncio.create_task(self.rbv.async_get(self.get_callback))
+
+    async def set_clean_speed_callback(self, message, device):
         _LOGGER.debug(device.state)
         asyncio.create_task(self.rbv.async_get(self.get_callback))
 
@@ -227,7 +241,7 @@ class EufyRobovacMqtt:
                      CleanSpeed.BOOST_IQ.value:"high",
                      CleanSpeed.MAX.value:"max"}
         ha_state = convert_state[eufy_state[Robovac.WORK_STATUS]]
-        fan_speed = convert_fan[eufy_state[Robovac.CLEAN_SPEED]]
+        fan_speed = eufy_state[Robovac.CLEAN_SPEED]
         return json.dumps({"state":  ha_state,
                            "battery_level": eufy_state[Robovac.BATTERY_LEVEL],
                            "fan_speed": fan_speed})
